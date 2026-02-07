@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useUser } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -63,8 +64,8 @@ export function Navbar() {
       <nav className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-16">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+            <Image src="/gentales-logo.png" alt="GenTales Logo" width={32} height={32} className="rounded-full" />
           </div>
           <span className="text-lg font-bold tracking-tight">GenTales</span>
         </Link>
