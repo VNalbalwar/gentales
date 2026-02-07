@@ -4,8 +4,11 @@ import { generateStorySchema } from "@/lib/validators";
 import { generateStoryWithAI, isAIAvailable } from "@/lib/generation/ollama";
 import { errorResponse, rateLimit, rateLimitExceeded } from "@/lib/utils";
 
+// Vercel: extend serverless function timeout (60s hobby, 300s pro)
+export const maxDuration = 60;
+
 /**
- * POST /api/generate/story — generate a story using local Ollama AI.
+ * POST /api/generate/story — generate a story using Ollama AI.
  */
 export async function POST(req: NextRequest) {
   const session = await auth();

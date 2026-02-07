@@ -91,7 +91,9 @@ Write the story now. Return ONLY valid JSON.`;
   let raw: string;
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 180_000); // 3 min timeout
+    const timeout = setTimeout(() => controller.abort(), 55_000); // 55s to fit Vercel's 60s limit
+
+    console.log(`[ollama] Generating story via ${OLLAMA_BASE_URL} with model ${OLLAMA_MODEL}`);
 
     const completion = await client.chat.completions.create(
       {
@@ -110,12 +112,18 @@ Write the story now. Return ONLY valid JSON.`;
     raw = completion.choices[0]?.message?.content || "";
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    console.error(`[ollama] API call failed: ${message}`);
+    console.error(`[ollama] Config: baseURL=${OLLAMA_BASE_URL}, model=${OLLAMA_MODEL}`);
     if (message.includes("abort") || message.includes("timeout")) {
-      console.error("[ollama] Generation timed out");
-      throw new Error("AI generation timed out. Try a shorter story or simpler prompt.");
+      throw new Error("AI generation timed out. Try a shorter story (flash/short) or a simpler prompt.");
     }
-    console.error("[ollama] API call failed:", message);
-    throw new Error("Failed to connect to AI. Is Ollama running?");
+    if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
+      throw new Error("Cannot reach AI server. The Ollama service may be down.");
+    }
+    if (message.includes("401") || message.includes("403")) {
+      throw new Error("AI authentication failed. Check API key configuration.");
+    }
+    throw new Error("AI generation failed. Please try again.");
   }
 
   if (!raw.trim()) {
@@ -249,15 +257,37 @@ export async function assistWriting(input: AssistInput): Promise<string> {
 ${input.content.slice(-3000)}
 ---`;
 
-  const completion = await client.chat.completions.create({
-    model: OLLAMA_MODEL,
-    messages: [
-      { role: "system", content: systemMessage },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: input.action === "suggest" ? 1.0 : 0.8,
-    top_p: 0.95,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
 
-  return completion.choices[0]?.message?.content || "";
+  console.log(`[ollama] Assist (${input.action}) via ${OLLAMA_BASE_URL} with model ${OLLAMA_MODEL}`);
+
+  try {
+    const completion = await client.chat.completions.create(
+      {
+        model: OLLAMA_MODEL,
+        messages: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: input.action === "suggest" ? 1.0 : 0.8,
+        top_p: 0.95,
+      },
+      { signal: controller.signal },
+    );
+
+    clearTimeout(timeout);
+    return completion.choices[0]?.message?.content || "";
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[ollama] Assist failed: ${message}`);
+    if (message.includes("abort") || message.includes("timeout")) {
+      throw new Error("AI assist timed out. Try with less content.");
+    }
+    if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
+      throw new Error("Cannot reach AI server. The Ollama service may be down.");
+    }
+    throw new Error("AI assist failed. Please try again.");
+  }
 }

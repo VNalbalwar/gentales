@@ -12,6 +12,9 @@ const assistSchema = z.object({
   instruction: z.string().max(500).optional(),
 });
 
+// Vercel: extend serverless function timeout (60s hobby, 300s pro)
+export const maxDuration = 60;
+
 /**
  * POST /api/generate/assist — AI writing assistant actions.
  */
