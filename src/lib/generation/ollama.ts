@@ -1,22 +1,32 @@
 import OpenAI from "openai";
 
 /**
- * Ollama-powered AI generation layer.
+ * AI generation layer using Ollama's OpenAI-compatible API.
  *
- * Uses Ollama's OpenAI-compatible API at localhost:11434.
- * Model: mistral (7B) — runs on RTX 4060 with ~4.5GB VRAM.
- *
- * We reuse the `openai` npm package since Ollama exposes
- * a fully compatible /v1/chat/completions endpoint.
+ * Supports any Ollama model (mistral, phi3:mini, llama3, etc.)
+ * configured via environment variables. Works with both local
+ * Ollama and remote VPS deployments behind a reverse proxy.
  */
 
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1";
+// Normalize base URL: ensure it ends with /v1 for OpenAI SDK compatibility
+function normalizeBaseURL(url: string): string {
+  const trimmed = url.replace(/\/+$/, ""); // strip trailing slashes
+  if (trimmed.endsWith("/v1")) return trimmed;
+  return `${trimmed}/v1`;
+}
+
+const OLLAMA_BASE_URL = normalizeBaseURL(
+  process.env.OLLAMA_BASE_URL || "http://localhost:11434"
+);
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "mistral";
 const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || "ollama";
 
 const client = new OpenAI({
   baseURL: OLLAMA_BASE_URL,
   apiKey: OLLAMA_API_KEY,
+  defaultHeaders: {
+    "X-Api-Key": OLLAMA_API_KEY,
+  },
 });
 
 /**
